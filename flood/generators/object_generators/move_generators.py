@@ -12,15 +12,23 @@ def generate_calls_move_get_account(
     rng = flood.generators.get_rng(random_seed=random_seed)
     addresses = _generate_valid_move_addresses(n_calls, rng)
     
-    return [
-        {
+    calls = []
+    for address in addresses:
+        url = f'/v1/accounts/{address}'
+        call = {
             'method': 'GET',
-            'url': f'/v1/accounts/{address}',
+            'url': url,
             'header': {'Content-Type': ['application/json']},
             'body': ''
         }
-        for address in addresses
-    ]
+        calls.append(call)
+    
+    # Log sample endpoints for debugging
+    if calls:
+        print(f"🔍 Generated {len(calls)} calls for move_get_account")
+        print(f"   Sample endpoints: {calls[0]['url']}, {calls[1]['url'] if len(calls) > 1 else 'N/A'}")
+    
+    return calls
 
 def generate_calls_move_get_account_resources(
     n_calls: int,

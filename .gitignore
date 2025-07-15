@@ -25,3 +25,5 @@ graveyard.py
 
 *.ipynb
 *.html
+venv
+.python-version

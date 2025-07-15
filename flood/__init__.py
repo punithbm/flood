@@ -20,9 +20,7 @@ from flood.tests.equality_tests import run_equality_test
 from flood.tests.load_tests import run_load_test
 from flood.tests.load_tests import run_load_tests
 
-
 __version__ = '0.3.1'
-
 
 def _clean_package_imports() -> None:
     """remove deep nested modules from flood namespace"""
@@ -37,6 +35,5 @@ def _clean_package_imports() -> None:
             name = value.__name__
             if not name.startswith('flood') or name.count('.') > 1:
                 delattr(flood, key)
-
 
 _clean_package_imports()

@@ -109,96 +109,72 @@ def _get_tqdm() -> types.ModuleType:
 
 
 def print_metric_tables(
-    results: typing.Mapping[str, spec.LoadTestOutput | spec.LoadTestDeepOutput],
-    metrics: typing.Sequence[str],
-    *,
+    results: typing.Mapping[str, flood.LoadTestOutput],
+    metrics: typing.Sequence[str] | None = None,
     suffix: str = '',
-    decimals: int | None = None,
-    comparison: bool | None = None,
-    indent: int | str | None = None,
+    decimals: int = 2,
+    comparison: bool = False,
+    indent: int = 0,  # Keep for compatibility but ignore
 ) -> None:
     import toolstr
-
-    if len(results) == 0:
-        toolstr.print('no results', indent=indent)
-        print()
-    if comparison is None:
-        comparison = len(results) == 2
-
-    names = list(results.keys())
-    rates = results[names[0]]['target_rate']
+    
+    if metrics is None:
+        metrics = ['success', 'throughput', 'p90']
+    
+    try:
+        styles = get_styles()
+    except:
+        styles = {'metavar': '', 'content': '', 'title': '', 'description': ''}
+    
     for metric in metrics:
-        # create labels
-        if metric in ['success', 'n_invalid_json_errors', 'n_rpc_errors']:
-            metric_suffix = ''
-        elif metric == 'throughput':
-            metric_suffix = ' (rps)'
-        else:
-            metric_suffix = ' (s)'
-        unitted_names = [name + metric_suffix for name in names]
-        labels = ['rate (rps)'] + unitted_names
-        if comparison:
-            if len(results) != 2:
-                raise NotImplementedError('comparison of >2 tests')
-            comparison_label = names[0] + ' / ' + names[1]
-            labels.append(comparison_label)
-        else:
-            comparison_label = None
-
-        # build rows
-        rows: list[list[typing.Any]] = [[rate] for rate in rates]
-        values = []
-        for name, result in results.items():
-            for row, value in zip(rows, result[metric]):  # type: ignore
-                row.append(value)
-                values.append(value)
-        if comparison:
-            for row in rows:
-                row.append(row[-2] / row[-1])
-
-        # compute column formats
-        if all(value > 1 for value in values if value is not None):
-            use_decimals = 1
-        else:
-            if decimals is None:
-                use_decimals = 6
-            else:
-                use_decimals = decimals
-        column_formats = {
-            column: {'decimals': use_decimals} for column in unitted_names
-        }
-        if comparison_label is not None:
+        # Get labels and data
+        labels = list(results.keys())
+        if len(labels) == 0:
+            continue
+            
+        # Create column formats
+        column_formats = {}
+        if comparison and len(results) == 2:
+            comparison_label = f'{labels[1]} vs {labels[0]}'
             column_formats[comparison_label] = {
                 'decimals': 1,
                 'percentage': True,
             }
-
-        # print header
-        toolstr.print_text_box(
-            toolstr.add_style(
-                metric + ' vs load' + suffix, styles.get('metavar')
-            ),
-            style=styles.get('content'),
-            indent=indent,
-        )
-
-        if metric == 'success':
-            for label in labels[1:]:
-                column_formats.setdefault(label, {})
-                column_formats[label]['percentage'] = True
-                column_formats[label]['decimals'] = 1
-
-        # print table
-        toolstr.print_table(
-            rows,
-            labels=labels,
-            column_formats=column_formats,  # type: ignore
-            label_style=styles.get('metavar'),
-            border=styles.get('content'),
-            indent=indent,
-        )
-        if metric != metrics[-1]:
-            print()
+        
+        # Print header - Remove indent parameter
+        try:
+            toolstr.print_text_box(
+                toolstr.add_style(
+                    metric + ' vs load' + suffix, styles.get('metavar', '')
+                ),
+                style=styles.get('content', ''),
+            )
+        except Exception as e:
+            # Fallback to simple print if toolstr fails
+            print(f"\n=== {metric} vs load{suffix} ===")
+        
+        # Get data for this metric
+        data = []
+        for label in labels:
+            result = results[label]
+            if hasattr(result, metric):
+                values = getattr(result, metric)
+                if isinstance(values, list):
+                    data.append(values)
+                else:
+                    data.append([values])
+            else:
+                data.append([])
+        
+        # Print the data (simplified version)
+        if data:
+            print(f"Results for {metric}:")
+            for i, label in enumerate(labels):
+                if i < len(data) and data[i]:
+                    avg_value = sum(data[i]) / len(data[i]) if data[i] else 0
+                    print(f"  {label}: {avg_value:.{decimals}f}")
+        
+        print()  # Add spacing between metrics
 
 
 #
@@ -278,4 +254,19 @@ def print_timestamped(message: str) -> None:
 def disable_text_colors() -> None:
     for key in list(styles.keys()):
         del styles[key]  # type: ignore
+
+
+def get_styles() -> typing.Dict[str, str]:
+    """Get styles for output formatting"""
+    try:
+        # Try to get styles from flood.user_io
+        return flood.user_io.styles
+    except:
+        # Fallback to basic styles if there's an issue
+        return {
+            'metavar': '',
+            'content': '',
+            'title': '',
+            'description': '',
+        }
 

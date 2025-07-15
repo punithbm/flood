@@ -376,7 +376,7 @@ def generate_calls_eth_call(
 ) -> typing.Sequence[flood.Call]:
     import ctc.rpc
 
-    if network != 'ethereum':
+    if network != 'ethereum': 
         raise Exception('only ethereum supported for eth_call')
 
     rng = generators.get_rng(random_seed=random_seed)

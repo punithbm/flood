@@ -35,10 +35,13 @@ def get_multi_test_generators() -> (
 def get_test_generator(test_name: str) -> flood.LoadTestGenerator:
     """get particular single test generator"""
     function_name = get_test_generator_function_name(test_name)
+    print(f"Looking for function: {function_name}")  # Debug line
     if hasattr(flood.generators, function_name):
         return getattr(flood.generators, function_name)  # type: ignore
     else:
-        raise Exception()
+        available_functions = [attr for attr in dir(flood.generators) if attr.startswith('generate_test_')]
+        print(f"Available functions: {available_functions}")  # Debug line
+        raise Exception(f"Could not find test generator: {function_name}")
 
 
 def get_tests_generator(test_name: str) -> flood.MultiLoadTestGenerator:
@@ -55,19 +58,25 @@ def get_tests_generator(test_name: str) -> flood.MultiLoadTestGenerator:
 #
 
 
+# Make sure the original generate_test function is restored and working
 def generate_test(
     *,
     test_name: str,
     random_seed: flood.RandomSeed | None = None,
     rates: typing.Sequence[int] | None = None,
+    duration: int | None = None,  # Add duration parameter
     durations: typing.Sequence[int] | None = None,
     vegeta_args: flood.VegetaArgsShorthand | None = None,
     network: str,
-    # output_dir: str | None = None,
     flood_version: str,
 ) -> flood.LoadTest:
     if test_name is None:
         raise Exception('must specify test_name')
+    
+    # Convert duration to durations if needed
+    if duration is not None and durations is None:
+        durations = [duration]
+    
     test_generator = get_test_generator(test_name)
     test_parameters: flood.TestGenerationParameters = {
         'flood_version': flood.get_flood_version(),
@@ -197,8 +206,12 @@ def get_test_generator_function_name(
         prefix = 'generate_tests_'
     else:
         prefix = 'generate_test_'
-
-    function_name = prefix + _camel_case_to_snake_case(display_name)
+    
+    print(f"Converting display_name '{display_name}' to function name")  # Debug line
+    
+    # The function should convert "aptos_get_transactions" to "generate_test_aptos_get_transactions"
+    function_name = prefix + display_name
+    print(f"Function name: {function_name}")  # Debug line
     return function_name
 
 
